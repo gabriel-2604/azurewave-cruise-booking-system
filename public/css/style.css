@@ -1,0 +1,23 @@
+body{
+    background:#eef7fb;
+    font-family:'Segoe UI',sans-serif;
+}
+
+.hero{
+    background:linear-gradient(135deg,#0d6efd,#0dcaf0);
+    color:white;
+    padding:80px 20px;
+}
+
+.card{
+    border:none;
+    border-radius:15px;
+}
+
+.btn-primary{
+    border-radius:30px;
+}
+
+.navbar-brand{
+    font-weight:bold;
+}

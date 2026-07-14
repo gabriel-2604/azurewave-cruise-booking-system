@@ -1,0 +1,236 @@
+/* Google Font */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap');
+
+*{
+    font-family:Poppins,sans-serif;
+}
+
+body{
+    background:#f4f7fb;
+    overflow-x:hidden;
+}
+
+/* ===========================
+   SIDEBAR
+=========================== */
+
+.sidebar{
+
+    position:fixed;
+
+    top:0;
+
+    left:0;
+
+    width:270px;
+
+    height:100vh;
+
+    background:linear-gradient(180deg,#0d6efd,#0052cc);
+
+    color:white;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:space-between;
+
+    overflow-y:auto;
+
+    z-index:1000;
+
+    box-shadow:5px 0 15px rgba(0,0,0,.15);
+}
+
+.logo{
+
+    border-bottom:1px solid rgba(255,255,255,.15);
+}
+
+.logo h3{
+
+    font-weight:700;
+}
+
+.menu-title{
+
+    padding-left:25px;
+
+    color:#d8e7ff;
+
+    letter-spacing:1px;
+
+    font-size:12px;
+}
+
+.sidebar .nav-link{
+
+    color:white;
+
+    padding:14px 25px;
+
+    transition:.3s;
+
+    border-left:4px solid transparent;
+}
+
+.sidebar .nav-link:hover{
+
+    background:rgba(255,255,255,.15);
+
+    border-left:4px solid white;
+}
+
+.sidebar .nav-link i{
+
+    margin-right:10px;
+}
+
+/* ===========================
+CONTENT
+=========================== */
+
+.main-content{
+
+    margin-left:270px;
+
+    min-height:100vh;
+
+    background:#f4f7fb;
+
+    padding:30px;
+
+    width:calc(100% - 270px);
+
+    overflow-x:auto;
+}
+
+/* ===========================
+NAVBAR
+=========================== */
+
+.topbar{
+
+    background:#fff;
+
+    border-radius:15px;
+
+    padding:20px 30px;
+
+    box-shadow:0 5px 20px rgba(0,0,0,.08);
+
+    margin-bottom:30px;
+}
+
+.content-wrapper{
+
+    max-width:1600px;
+
+    margin:auto;
+}
+
+/* ===========================
+CARDS
+=========================== */
+
+.card{
+
+    border:none;
+
+    border-radius:15px;
+
+    box-shadow:0 5px 18px rgba(0,0,0,.08);
+}
+
+.card:hover{
+
+    transform:translateY(-3px);
+
+    transition:.3s;
+}
+
+/* ===========================
+TABLES
+=========================== */
+
+.table{
+
+    vertical-align:middle;
+}
+
+.table thead{
+
+    background:#0d6efd;
+
+    color:white;
+}
+
+.table img{
+
+    border-radius:10px;
+}
+
+/* ===========================
+BUTTONS
+=========================== */
+
+.btn{
+
+    border-radius:10px;
+}
+
+/* ===========================
+BADGES
+=========================== */
+
+.badge{
+
+    padding:8px 12px;
+
+    font-size:13px;
+}
+
+/* ===========================
+FOOTER
+=========================== */
+
+footer{
+
+    margin-top:50px;
+
+    color:#777;
+}
+
+.sidebar .nav-link.active{
+
+    background:rgba(255,255,255,.20);
+
+    border-left:4px solid white;
+
+    font-weight:600;
+}
+
+@media (max-width:992px){
+
+    .sidebar{
+
+        width:100%;
+
+        position:relative;
+
+        height:auto;
+
+    }
+
+    .main-content{
+
+        margin-left:0;
+
+        width:100%;
+
+        padding:20px;
+
+    }
+
+}
