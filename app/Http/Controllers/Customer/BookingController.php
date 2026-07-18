@@ -8,6 +8,7 @@ use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Booking;
 use App\Models\BookingLog;
 use App\Models\Cruise;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -28,6 +29,7 @@ class BookingController extends Controller
     {
         $cruises = Cruise::where('status', '!=', 'Cancelled')
             ->where('available_slots', '>', 0)
+            ->whereDate('departure_date', '>=', today())
             ->orderBy('departure_date')
             ->get();
 
@@ -42,6 +44,14 @@ class BookingController extends Controller
         $data['booking_status'] = 'Pending';
 
         $cruise = Cruise::findOrFail($data['cruise_id']);
+
+        if ($this->cruiseHasDeparted($cruise)) {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
 
         if ($cruise->status === 'Cancelled') {
             return back()
@@ -141,7 +151,8 @@ class BookingController extends Controller
         $cruises = Cruise::where(function ($query) use ($booking) {
                 $query->where(function ($availableQuery) {
                     $availableQuery->where('status', '!=', 'Cancelled')
-                        ->where('available_slots', '>', 0);
+                        ->where('available_slots', '>', 0)
+                        ->whereDate('departure_date', '>=', today());
                 })
                 ->orWhere('id', $booking->cruise_id);
             })
@@ -172,6 +183,14 @@ class BookingController extends Controller
 
         $oldCruise = $booking->cruise;
         $newCruise = Cruise::findOrFail($data['cruise_id']);
+
+        if ($this->cruiseHasDeparted($newCruise)) {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
 
         if ($newCruise->status === 'Cancelled') {
             return back()
@@ -299,12 +318,12 @@ class BookingController extends Controller
 
             return [
                 'id' => $booking->id,
-                'title' => $booking->booking_status . ' - ' . \Carbon\Carbon::parse($booking->booking_time)->format('h:i A'),
-                'start' => \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d'),
+                'title' => $booking->booking_status . ' - ' . Carbon::parse($booking->booking_time)->format('h:i A'),
+                'start' => Carbon::parse($booking->booking_date)->format('Y-m-d'),
                 'backgroundColor' => $statusColor,
                 'borderColor' => $statusColor,
                 'extendedProps' => [
-                    'time' => \Carbon\Carbon::parse($booking->booking_time)->format('h:i A'),
+                    'time' => Carbon::parse($booking->booking_time)->format('h:i A'),
                     'passengers' => $booking->passenger_count,
                     'status' => $booking->booking_status,
                 ],
@@ -314,9 +333,24 @@ class BookingController extends Controller
         return response()->json($events);
     }
 
+    private function cruiseHasDeparted(Cruise $cruise): bool
+    {
+        $departureDateTime = Carbon::parse($cruise->departure_date . ' ' . $cruise->departure_time);
+
+        return $departureDateTime->isPast();
+    }
+
     private function updateCruiseStatus(Cruise $cruise): void
     {
         if ($cruise->status === 'Cancelled') {
+            return;
+        }
+
+        if ($this->cruiseHasDeparted($cruise)) {
+            $cruise->update([
+                'status' => 'Completed',
+            ]);
+
             return;
         }
 

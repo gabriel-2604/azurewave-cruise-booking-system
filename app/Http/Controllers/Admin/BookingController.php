@@ -6,12 +6,13 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\StoreBookingRequest;
 use App\Http\Requests\UpdateBookingRequest;
 use App\Models\Booking;
+use App\Models\BookingLog;
 use App\Models\Cruise;
 use App\Models\User;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
-use App\Models\BookingLog;
 
 class BookingController extends Controller
 {
@@ -56,6 +57,7 @@ class BookingController extends Controller
             ->get();
 
         $cruises = Cruise::where('status', '!=', 'Cancelled')
+            ->whereDate('departure_date', '>=', today())
             ->orderBy('departure_date')
             ->get();
 
@@ -63,42 +65,42 @@ class BookingController extends Controller
     }
 
     public function unavailableDates(Request $request)
-{
-    $cruiseId = $request->cruise_id;
+    {
+        $cruiseId = $request->cruise_id;
 
-    if (!$cruiseId) {
-        return response()->json([]);
-    }
+        if (!$cruiseId) {
+            return response()->json([]);
+        }
 
-    $bookings = Booking::with(['user', 'cruise'])
-        ->where('cruise_id', $cruiseId)
-        ->whereIn('booking_status', ['Pending', 'Approved', 'Completed'])
-        ->get();
+        $bookings = Booking::with(['user', 'cruise'])
+            ->where('cruise_id', $cruiseId)
+            ->whereIn('booking_status', ['Pending', 'Approved', 'Completed'])
+            ->get();
 
-    $events = $bookings->map(function ($booking) {
-        $statusColor = match ($booking->booking_status) {
-            'Pending' => '#ffc107',
-            'Approved' => '#198754',
-            'Completed' => '#0d6efd',
-            default => '#6c757d',
-        };
+        $events = $bookings->map(function ($booking) {
+            $statusColor = match ($booking->booking_status) {
+                'Pending' => '#ffc107',
+                'Approved' => '#198754',
+                'Completed' => '#0d6efd',
+                default => '#6c757d',
+            };
 
-        return [
-            'id' => $booking->id,
-            'title' => $booking->booking_status . ' - ' . \Carbon\Carbon::parse($booking->booking_time)->format('h:i A'),
-            'start' => \Carbon\Carbon::parse($booking->booking_date)->format('Y-m-d'),
-            'backgroundColor' => $statusColor,
-            'borderColor' => $statusColor,
-            'extendedProps' => [
-                'customer' => $booking->user->name,
-                'time' => \Carbon\Carbon::parse($booking->booking_time)->format('h:i A'),
-                'passengers' => $booking->passenger_count,
-                'status' => $booking->booking_status,
-            ],
-        ];
-    });
+            return [
+                'id' => $booking->id,
+                'title' => $booking->booking_status . ' - ' . Carbon::parse($booking->booking_time)->format('h:i A'),
+                'start' => Carbon::parse($booking->booking_date)->format('Y-m-d'),
+                'backgroundColor' => $statusColor,
+                'borderColor' => $statusColor,
+                'extendedProps' => [
+                    'customer' => $booking->user->name ?? 'Deleted User',
+                    'time' => Carbon::parse($booking->booking_time)->format('h:i A'),
+                    'passengers' => $booking->passenger_count,
+                    'status' => $booking->booking_status,
+                ],
+            ];
+        });
 
-    return response()->json($events);
+        return response()->json($events);
     }
 
     public function store(StoreBookingRequest $request)
@@ -106,6 +108,16 @@ class BookingController extends Controller
         $data = $request->validated();
 
         $cruise = Cruise::findOrFail($data['cruise_id']);
+
+        if ($this->cruiseHasDeparted($cruise)) {
+            $this->updateCruiseStatus($cruise);
+
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
 
         if ($cruise->status === 'Cancelled') {
             return back()
@@ -123,14 +135,6 @@ class BookingController extends Controller
                 ->withInput();
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Prevent duplicate active schedule
-        |--------------------------------------------------------------------------
-        | Active bookings are Pending, Approved, and Completed.
-        | Rejected and Cancelled bookings do not block the schedule.
-        */
-
         $duplicateBooking = Booking::where('cruise_id', $data['cruise_id'])
             ->whereDate('booking_date', $data['booking_date'])
             ->where('booking_time', $data['booking_time'])
@@ -144,13 +148,6 @@ class BookingController extends Controller
                 ])
                 ->withInput();
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Capacity checking
-        |--------------------------------------------------------------------------
-        | Pending, Approved, and Completed bookings consume available slots.
-        */
 
         if ($this->consumesSlots($data['booking_status'])) {
             if ($data['passenger_count'] > $cruise->available_slots) {
@@ -200,7 +197,11 @@ class BookingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $cruises = Cruise::orderBy('departure_date')
+        $cruises = Cruise::where(function ($query) use ($booking) {
+                $query->whereDate('departure_date', '>=', today())
+                    ->orWhere('id', $booking->cruise_id);
+            })
+            ->orderBy('departure_date')
             ->get();
 
         return view('admin.bookings.edit', compact(
@@ -217,11 +218,18 @@ class BookingController extends Controller
         $oldCruise = $booking->cruise;
         $newCruise = Cruise::findOrFail($data['cruise_id']);
 
-        /*
-        |--------------------------------------------------------------------------
-        | Prevent duplicate active schedule
-        |--------------------------------------------------------------------------
-        */
+        if (
+            $this->consumesSlots($data['booking_status']) &&
+            $this->cruiseHasDeparted($newCruise)
+        ) {
+            $this->updateCruiseStatus($newCruise);
+
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise has already departed. You cannot assign an active booking to this cruise.',
+                ])
+                ->withInput();
+        }
 
         $duplicateBooking = Booking::where('id', '!=', $booking->id)
             ->where('cruise_id', $data['cruise_id'])
@@ -245,13 +253,6 @@ class BookingController extends Controller
                 ])
                 ->withInput();
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Calculate available slots before update
-        |--------------------------------------------------------------------------
-        | If the old booking consumed slots, temporarily add them back for validation.
-        */
 
         $availableSlots = $newCruise->available_slots;
 
@@ -284,31 +285,13 @@ class BookingController extends Controller
         }
 
         DB::transaction(function () use ($booking, $data, $oldCruise, $newCruise) {
-            /*
-            |--------------------------------------------------------------------------
-            | Restore old slot usage
-            |--------------------------------------------------------------------------
-            */
-
             if ($this->consumesSlots($booking->booking_status)) {
                 $oldCruise->increment('available_slots', $booking->passenger_count);
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | Update booking
-            |--------------------------------------------------------------------------
-            */
-
             $booking->update($data);
 
             $this->createBookingLog($booking, 'Booking Updated');
-
-            /*
-            |--------------------------------------------------------------------------
-            | Apply new slot usage
-            |--------------------------------------------------------------------------
-            */
 
             if ($this->consumesSlots($booking->booking_status)) {
                 $newCruise->decrement('available_slots', $booking->passenger_count);
@@ -354,163 +337,179 @@ class BookingController extends Controller
     }
 
     public function approve(Booking $booking)
-{
-    if ($booking->booking_status === 'Approved') {
-        return redirect()
-            ->route('bookings.index')
-            ->with('success', 'Booking is already approved.');
-    }
-
-    $cruise = $booking->cruise;
-
-    if ($cruise->status === 'Cancelled') {
-        return redirect()
-            ->route('bookings.index')
-            ->with('error', 'Cannot approve booking because the cruise is cancelled.');
-    }
-
-    /*
-    |--------------------------------------------------------------------------
-    | If booking is currently Rejected or Cancelled, approving it will consume slots.
-    |--------------------------------------------------------------------------
-    */
-
-    if (!$this->consumesSlots($booking->booking_status)) {
-        if ($booking->passenger_count > $cruise->available_slots) {
+    {
+        if ($booking->booking_status === 'Approved') {
             return redirect()
                 ->route('bookings.index')
-                ->with('error', 'Cannot approve booking. Not enough available slots.');
+                ->with('success', 'Booking is already approved.');
         }
 
-        DB::transaction(function () use ($booking, $cruise) {
-            $booking->update([
-                'booking_status' => 'Approved',
-            ]);
-            $this->createBookingLog($booking, 'Booking Approved');
+        $booking->load('cruise');
 
-            $cruise->decrement('available_slots', $booking->passenger_count);
+        $cruise = $booking->cruise;
 
-            $cruise->refresh();
+        if (!$cruise) {
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', 'Cannot approve booking because the cruise record no longer exists.');
+        }
 
+        if ($this->cruiseHasDeparted($cruise)) {
             $this->updateCruiseStatus($cruise);
-        });
+
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', 'Cannot approve booking because the cruise departure date has already passed.');
+        }
+
+        if ($cruise->status === 'Cancelled') {
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', 'Cannot approve booking because the cruise is cancelled.');
+        }
+
+        if (!$this->consumesSlots($booking->booking_status)) {
+            if ($booking->passenger_count > $cruise->available_slots) {
+                return redirect()
+                    ->route('bookings.index')
+                    ->with('error', 'Cannot approve booking. Not enough available slots.');
+            }
+
+            DB::transaction(function () use ($booking, $cruise) {
+                $booking->update([
+                    'booking_status' => 'Approved',
+                ]);
+
+                $this->createBookingLog($booking, 'Booking Approved');
+
+                $cruise->decrement('available_slots', $booking->passenger_count);
+
+                $cruise->refresh();
+
+                $this->updateCruiseStatus($cruise);
+            });
+
+            return redirect()
+                ->route('bookings.index')
+                ->with('success', 'Booking approved successfully.');
+        }
+
+        $booking->update([
+            'booking_status' => 'Approved',
+        ]);
+
+        $this->createBookingLog($booking, 'Booking Approved');
 
         return redirect()
             ->route('bookings.index')
             ->with('success', 'Booking approved successfully.');
     }
 
-    /*
-    |--------------------------------------------------------------------------
-    | If booking is already Pending or Completed, slots are already consumed.
-    |--------------------------------------------------------------------------
-    */
+    public function reject(Booking $booking)
+    {
+        if ($booking->booking_status === 'Rejected') {
+            return redirect()
+                ->route('bookings.index')
+                ->with('success', 'Booking is already rejected.');
+        }
 
-    $booking->update([
-        'booking_status' => 'Approved',
-    ]);
+        $cruise = $booking->cruise;
 
-    return redirect()
-        ->route('bookings.index')
-        ->with('success', 'Booking approved successfully.');
-}
+        if ($cruise && $this->consumesSlots($booking->booking_status)) {
+            DB::transaction(function () use ($booking, $cruise) {
+                $cruise->increment('available_slots', $booking->passenger_count);
 
-public function reject(Booking $booking)
-{
-    if ($booking->booking_status === 'Rejected') {
-        return redirect()
-            ->route('bookings.index')
-            ->with('success', 'Booking is already rejected.');
-    }
+                $booking->update([
+                    'booking_status' => 'Rejected',
+                ]);
 
-    $cruise = $booking->cruise;
+                $this->createBookingLog($booking, 'Booking Rejected');
 
-    /*
-    |--------------------------------------------------------------------------
-    | If booking previously consumed slots, rejecting it should return slots.
-    |--------------------------------------------------------------------------
-    */
+                $cruise->refresh();
 
-    if ($this->consumesSlots($booking->booking_status)) {
-        DB::transaction(function () use ($booking, $cruise) {
-            $cruise->increment('available_slots', $booking->passenger_count);
+                $this->updateCruiseStatus($cruise);
+            });
 
-            $booking->update([
-                'booking_status' => 'Rejected',
-            ]);
-            $this->createBookingLog($booking, 'Booking Rejected');
+            return redirect()
+                ->route('bookings.index')
+                ->with('success', 'Booking rejected successfully.');
+        }
 
-            $cruise->refresh();
+        $booking->update([
+            'booking_status' => 'Rejected',
+        ]);
 
-            $this->updateCruiseStatus($cruise);
-        });
+        $this->createBookingLog($booking, 'Booking Rejected');
 
         return redirect()
             ->route('bookings.index')
             ->with('success', 'Booking rejected successfully.');
     }
 
-    $booking->update([
-        'booking_status' => 'Rejected',
-    ]);
+    public function cancel(Booking $booking)
+    {
+        if ($booking->booking_status === 'Cancelled') {
+            return redirect()
+                ->route('bookings.index')
+                ->with('success', 'Booking is already cancelled.');
+        }
 
-    return redirect()
-        ->route('bookings.index')
-        ->with('success', 'Booking rejected successfully.');
-}
+        $cruise = $booking->cruise;
 
-public function cancel(Booking $booking)
-{
-    if ($booking->booking_status === 'Cancelled') {
-        return redirect()
-            ->route('bookings.index')
-            ->with('success', 'Booking is already cancelled.');
-    }
+        if ($cruise && $this->consumesSlots($booking->booking_status)) {
+            DB::transaction(function () use ($booking, $cruise) {
+                $cruise->increment('available_slots', $booking->passenger_count);
 
-    $cruise = $booking->cruise;
+                $booking->update([
+                    'booking_status' => 'Cancelled',
+                ]);
 
-    /*
-    |--------------------------------------------------------------------------
-    | If booking previously consumed slots, cancelling it should return slots.
-    |--------------------------------------------------------------------------
-    */
+                $this->createBookingLog($booking, 'Booking Cancelled');
 
-    if ($this->consumesSlots($booking->booking_status)) {
-        DB::transaction(function () use ($booking, $cruise) {
-            $cruise->increment('available_slots', $booking->passenger_count);
+                $cruise->refresh();
 
-            $booking->update([
-                'booking_status' => 'Cancelled',
-            ]);
-            $this->createBookingLog($booking, 'Booking Cancelled');
+                $this->updateCruiseStatus($cruise);
+            });
 
-            $cruise->refresh();
+            return redirect()
+                ->route('bookings.index')
+                ->with('success', 'Booking cancelled successfully.');
+        }
 
-            $this->updateCruiseStatus($cruise);
-        });
+        $booking->update([
+            'booking_status' => 'Cancelled',
+        ]);
+
+        $this->createBookingLog($booking, 'Booking Cancelled');
 
         return redirect()
             ->route('bookings.index')
             ->with('success', 'Booking cancelled successfully.');
     }
 
-    $booking->update([
-        'booking_status' => 'Cancelled',
-    ]);
-
-    return redirect()
-        ->route('bookings.index')
-        ->with('success', 'Booking cancelled successfully.');
-}
-
     private function consumesSlots(string $status): bool
     {
         return in_array($status, ['Pending', 'Approved', 'Completed']);
     }
 
+    private function cruiseHasDeparted(Cruise $cruise): bool
+    {
+        $departureDateTime = Carbon::parse($cruise->departure_date . ' ' . $cruise->departure_time);
+
+        return $departureDateTime->isPast();
+    }
+
     private function updateCruiseStatus(Cruise $cruise): void
     {
         if ($cruise->status === 'Cancelled') {
+            return;
+        }
+
+        if ($this->cruiseHasDeparted($cruise)) {
+            $cruise->update([
+                'status' => 'Completed',
+            ]);
+
             return;
         }
 
@@ -537,18 +536,18 @@ public function cancel(Booking $booking)
     }
 
     private function createBookingLog(Booking $booking, string $action): void
-{
-    $booking->load(['user', 'cruise']);
+    {
+        $booking->load(['user', 'cruise']);
 
-    BookingLog::create([
-        'booking_id' => $booking->id,
-        'customer_name' => $booking->user->name,
-        'cruise_name' => $booking->cruise->cruise_name,
-        'booking_date' => $booking->booking_date,
-        'booking_time' => $booking->booking_time,
-        'booking_status' => $booking->booking_status,
-        'action' => $action,
-        'performed_by' => auth()->user()->name ?? 'System',
-    ]);
-}
+        BookingLog::create([
+            'booking_id' => $booking->id,
+            'customer_name' => $booking->user->name ?? 'Deleted User',
+            'cruise_name' => $booking->cruise->cruise_name ?? 'Deleted Cruise',
+            'booking_date' => $booking->booking_date,
+            'booking_time' => $booking->booking_time,
+            'booking_status' => $booking->booking_status,
+            'action' => $action,
+            'performed_by' => auth()->user()->name ?? 'System',
+        ]);
+    }
 }
