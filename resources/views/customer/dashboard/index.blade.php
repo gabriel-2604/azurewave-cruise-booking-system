@@ -38,11 +38,12 @@
         ->take(5)
         ->get();
 
-    $availableCruises = \App\Models\Cruise::where('status', '!=', 'Cancelled')
-        ->where('available_slots', '>', 0)
-        ->orderBy('departure_date')
-        ->take(4)
-        ->get();
+    $availableCruises = \App\Models\Cruise::whereNotIn('status', ['Cancelled', 'Completed'])
+    ->where('available_slots', '>', 0)
+    ->whereDate('departure_date', '>=', today())
+    ->orderBy('departure_date')
+    ->take(6)
+    ->get();
 @endphp
 
 <style>
@@ -775,9 +776,9 @@
 
 <div class="row g-4">
 
-    <div class="col-lg-5">
+    <div class="col-12">
 
-        <div class="card section-card h-100">
+        <div class="card section-card">
 
             <div class="card-header bg-white d-flex justify-content-between align-items-center p-4">
 
@@ -802,7 +803,7 @@
 
                 @if($availableCruises->count() > 0)
 
-                    <div class="row g-3">
+                    <div class="row g-4">
 
                         @foreach($availableCruises as $cruise)
 
@@ -816,9 +817,9 @@
                                     : 'bi-check-circle';
                             @endphp
 
-                            <div class="col-12">
+                            <div class="col-xl-4 col-md-6">
 
-                                <div class="cruise-premium-card">
+                                <div class="cruise-premium-card h-100">
 
                                     @if($cruise->image)
 
@@ -834,7 +835,7 @@
 
                                     @endif
 
-                                    <div class="cruise-premium-body">
+                                    <div class="cruise-premium-body d-flex flex-column h-100">
 
                                         <div class="d-flex justify-content-between align-items-start gap-2 mb-3">
 
@@ -886,7 +887,7 @@
                                         </div>
 
                                         <a href="{{ route('customer.bookings.create', ['cruise_id' => $cruise->id]) }}"
-                                           class="btn btn-primary cruise-book-btn w-100">
+                                           class="btn btn-primary cruise-book-btn w-100 mt-auto">
 
                                             <i class="bi bi-calendar-plus"></i>
                                             Book This Cruise
@@ -927,9 +928,9 @@
 
     </div>
 
-    <div class="col-lg-7">
+    <div class="col-12">
 
-        <div class="card section-card h-100">
+        <div class="card section-card">
 
             <div class="card-header bg-white d-flex justify-content-between align-items-center p-4">
 

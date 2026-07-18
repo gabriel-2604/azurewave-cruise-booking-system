@@ -120,6 +120,52 @@
         color: #023e8a;
     }
 
+    .cruise-info-card {
+        border: 1px solid #edf2f7;
+        border-radius: 22px;
+        background: #f8fdff;
+        padding: 18px;
+    }
+
+    .premium-time-input {
+        position: relative;
+    }
+
+    .premium-time-icon {
+        position: absolute;
+        top: 50%;
+        left: 16px;
+        transform: translateY(-50%);
+        color: #0077b6;
+        font-size: 20px;
+        z-index: 2;
+    }
+
+    .premium-time-input input {
+        padding-left: 48px;
+        font-weight: 800;
+        color: #023e8a;
+        background: #f8fdff;
+        border: 1px solid #d8f3ff;
+    }
+
+    .premium-time-input input:focus {
+        background: #ffffff;
+        border-color: #00b4d8;
+        box-shadow: 0 0 0 0.2rem rgba(0, 180, 216, 0.15);
+    }
+
+    .time-helper-box {
+        border-radius: 18px;
+        background: #f8fdff;
+        border: 1px solid #d8f3ff;
+        padding: 14px 16px;
+        margin-top: 12px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
     .calendar-wrapper {
         border: 1px solid #edf2f7;
         border-radius: 24px;
@@ -174,13 +220,6 @@
         align-items: center;
         justify-content: center;
         flex-shrink: 0;
-    }
-
-    .cruise-info-card {
-        border: 1px solid #edf2f7;
-        border-radius: 22px;
-        background: #f8fdff;
-        padding: 18px;
     }
 
     .fc {
@@ -370,12 +409,13 @@
                                         data-destination="{{ $cruise->destination }}"
                                         data-port="{{ $cruise->departure_port }}"
                                         data-date="{{ \Carbon\Carbon::parse($cruise->departure_date)->format('M d, Y') }}"
+                                        data-departure-raw="{{ \Carbon\Carbon::parse($cruise->departure_date)->format('Y-m-d') }}"
                                         data-time="{{ \Carbon\Carbon::parse($cruise->departure_time)->format('h:i A') }}"
                                         data-price="₱{{ number_format($cruise->ticket_price, 2) }}"
                                         data-slots="{{ $cruise->available_slots }}"
                                         {{ old('cruise_id') == $cruise->id ? 'selected' : '' }}>
 
-                                    {{ $cruise->cruise_name }} — {{ $cruise->destination }} 
+                                    {{ $cruise->cruise_name }} — {{ $cruise->destination }}
                                     ({{ $cruise->available_slots }} slots)
 
                                 </option>
@@ -460,14 +500,23 @@
                                 Booking Time
                             </label>
 
-                            <input type="time"
-                                   name="booking_time"
-                                   value="{{ old('booking_time') }}"
-                                   class="form-control @error('booking_time') is-invalid @enderror"
-                                   required>
+                            <div class="premium-time-input">
+                                <i class="bi bi-clock premium-time-icon"></i>
+
+                                <input type="time"
+                                       name="booking_time"
+                                       value="{{ old('booking_time') }}"
+                                       class="form-control @error('booking_time') is-invalid @enderror"
+                                       required>
+                            </div>
+
+                            <div class="time-helper-box">
+                                <i class="bi bi-info-circle"></i>
+                                Choose any booking time within 24 hours. Same cruise, date, and time cannot be booked twice.
+                            </div>
 
                             @error('booking_time')
-                                <small class="text-danger">
+                                <small class="text-danger d-block mt-2">
                                     {{ $message }}
                                 </small>
                             @enderror
@@ -651,7 +700,7 @@
                             </h6>
 
                             <small class="text-muted">
-                                Select an available booking date from the calendar.
+                                Select a booking date on or before the cruise departure date.
                             </small>
                         </div>
 
@@ -661,6 +710,24 @@
 
                         <div class="guide-icon">
                             <i class="bi bi-3-circle"></i>
+                        </div>
+
+                        <div>
+                            <h6 class="fw-bold mb-1">
+                                Choose Time
+                            </h6>
+
+                            <small class="text-muted">
+                                Choose any booking time within 24 hours.
+                            </small>
+                        </div>
+
+                    </div>
+
+                    <div class="guide-item">
+
+                        <div class="guide-icon">
+                            <i class="bi bi-4-circle"></i>
                         </div>
 
                         <div>
@@ -808,6 +875,19 @@
                 selectedCruiseInfo.classList.remove('d-none');
             }
 
+            function getSelectedCruiseDepartureDate() {
+                const selectedOption = cruiseSelect.options[cruiseSelect.selectedIndex];
+
+                if (!selectedOption || !selectedOption.value || !selectedOption.dataset.departureRaw) {
+                    return null;
+                }
+
+                const departureDate = new Date(selectedOption.dataset.departureRaw + 'T00:00:00');
+                departureDate.setHours(0, 0, 0, 0);
+
+                return departureDate;
+            }
+
             updateCruiseInfo();
 
             const calendar = new FullCalendar.Calendar(calendarElement, {
@@ -849,14 +929,39 @@
                     const selectedDate = new Date(info.dateStr + 'T00:00:00');
                     selectedDate.setHours(0, 0, 0, 0);
 
+                    const cruiseDepartureDate = getSelectedCruiseDepartureDate();
+
+                    if (!cruiseSelect.value) {
+                        bookingDateInput.value = '';
+                        selectedDateText.textContent = 'No date selected yet';
+
+                        showWarning(
+                            'Choose Cruise First',
+                            'Please choose a cruise before selecting a booking date.'
+                        );
+
+                        return;
+                    }
+
                     if (selectedDate < today) {
                         bookingDateInput.value = '';
-
                         selectedDateText.textContent = 'No date selected yet';
 
                         showWarning(
                             'Past Date Not Allowed',
                             'You cannot select a past date. Please choose today or a future date.'
+                        );
+
+                        return;
+                    }
+
+                    if (cruiseDepartureDate && selectedDate > cruiseDepartureDate) {
+                        bookingDateInput.value = '';
+                        selectedDateText.textContent = 'No date selected yet';
+
+                        showWarning(
+                            'Date After Departure Not Allowed',
+                            'You cannot book after the cruise departure date. Please select a date on or before the selected cruise departure date.'
                         );
 
                         return;
@@ -904,6 +1009,15 @@
 
             cruiseSelect.addEventListener('change', function () {
                 updateCruiseInfo();
+
+                bookingDateInput.value = '';
+                selectedDateText.textContent = 'No date selected yet';
+
+                document.querySelectorAll('.fc-daygrid-day').forEach(day => {
+                    day.style.outline = '';
+                    day.style.backgroundColor = '';
+                });
+
                 calendar.refetchEvents();
             });
         });

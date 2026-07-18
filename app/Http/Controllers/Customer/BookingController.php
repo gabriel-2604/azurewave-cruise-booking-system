@@ -27,7 +27,7 @@ class BookingController extends Controller
 
     public function create()
     {
-        $cruises = Cruise::where('status', '!=', 'Cancelled')
+        $cruises = Cruise::whereNotIn('status', ['Cancelled', 'Completed'])
             ->where('available_slots', '>', 0)
             ->whereDate('departure_date', '>=', today())
             ->orderBy('departure_date')
@@ -45,10 +45,28 @@ class BookingController extends Controller
 
         $cruise = Cruise::findOrFail($data['cruise_id']);
 
+        if ($this->bookingDateIsAfterDeparture($data['booking_date'], $cruise)) {
+            return back()
+                ->withErrors([
+                    'booking_date' => 'You cannot book a date after the cruise departure date. This cruise departs on ' . Carbon::parse($cruise->departure_date)->format('M d, Y') . '.',
+                ])
+                ->withInput();
+        }
+
         if ($this->cruiseHasDeparted($cruise)) {
+            $this->updateCruiseStatus($cruise);
+
             return back()
                 ->withErrors([
                     'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
+
+        if ($cruise->status === 'Completed') {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise is already completed. Please choose another available cruise.',
                 ])
                 ->withInput();
         }
@@ -150,7 +168,7 @@ class BookingController extends Controller
 
         $cruises = Cruise::where(function ($query) use ($booking) {
                 $query->where(function ($availableQuery) {
-                    $availableQuery->where('status', '!=', 'Cancelled')
+                    $availableQuery->whereNotIn('status', ['Cancelled', 'Completed'])
                         ->where('available_slots', '>', 0)
                         ->whereDate('departure_date', '>=', today());
                 })
@@ -184,10 +202,28 @@ class BookingController extends Controller
         $oldCruise = $booking->cruise;
         $newCruise = Cruise::findOrFail($data['cruise_id']);
 
+        if ($this->bookingDateIsAfterDeparture($data['booking_date'], $newCruise)) {
+            return back()
+                ->withErrors([
+                    'booking_date' => 'You cannot book a date after the cruise departure date. This cruise departs on ' . Carbon::parse($newCruise->departure_date)->format('M d, Y') . '.',
+                ])
+                ->withInput();
+        }
+
         if ($this->cruiseHasDeparted($newCruise)) {
+            $this->updateCruiseStatus($newCruise);
+
             return back()
                 ->withErrors([
                     'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
+
+        if ($newCruise->status === 'Completed') {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise is already completed. Please choose another available cruise.',
                 ])
                 ->withInput();
         }
@@ -240,17 +276,25 @@ class BookingController extends Controller
         }
 
         DB::transaction(function () use ($booking, $data, $oldCruise, $newCruise) {
-            $oldCruise->increment('available_slots', $booking->passenger_count);
+            if ($oldCruise) {
+                $oldCruise->increment('available_slots', $booking->passenger_count);
+            }
 
             $booking->update($data);
 
-            $newCruise->decrement('available_slots', $booking->passenger_count);
+            if ($newCruise) {
+                $newCruise->decrement('available_slots', $booking->passenger_count);
+            }
 
-            $oldCruise->refresh();
-            $newCruise->refresh();
+            if ($oldCruise) {
+                $oldCruise->refresh();
+                $this->updateCruiseStatus($oldCruise);
+            }
 
-            $this->updateCruiseStatus($oldCruise);
-            $this->updateCruiseStatus($newCruise);
+            if ($newCruise) {
+                $newCruise->refresh();
+                $this->updateCruiseStatus($newCruise);
+            }
 
             $this->createBookingLog($booking, 'Customer Booking Updated');
         });
@@ -275,7 +319,7 @@ class BookingController extends Controller
         $cruise = $booking->cruise;
 
         DB::transaction(function () use ($booking, $cruise) {
-            if (in_array($booking->booking_status, ['Pending', 'Approved'])) {
+            if ($cruise && in_array($booking->booking_status, ['Pending', 'Approved'])) {
                 $cruise->increment('available_slots', $booking->passenger_count);
             }
 
@@ -283,9 +327,10 @@ class BookingController extends Controller
                 'booking_status' => 'Cancelled',
             ]);
 
-            $cruise->refresh();
-
-            $this->updateCruiseStatus($cruise);
+            if ($cruise) {
+                $cruise->refresh();
+                $this->updateCruiseStatus($cruise);
+            }
 
             $this->createBookingLog($booking, 'Customer Booking Cancelled');
         });
@@ -335,9 +380,20 @@ class BookingController extends Controller
 
     private function cruiseHasDeparted(Cruise $cruise): bool
     {
-        $departureDateTime = Carbon::parse($cruise->departure_date . ' ' . $cruise->departure_time);
+        $departureDate = Carbon::parse($cruise->departure_date)->format('Y-m-d');
+        $departureTime = Carbon::parse($cruise->departure_time)->format('H:i:s');
+
+        $departureDateTime = Carbon::parse($departureDate . ' ' . $departureTime);
 
         return $departureDateTime->isPast();
+    }
+
+    private function bookingDateIsAfterDeparture(string $bookingDate, Cruise $cruise): bool
+    {
+        $selectedBookingDate = Carbon::parse($bookingDate)->format('Y-m-d');
+        $cruiseDepartureDate = Carbon::parse($cruise->departure_date)->format('Y-m-d');
+
+        return $selectedBookingDate > $cruiseDepartureDate;
     }
 
     private function updateCruiseStatus(Cruise $cruise): void

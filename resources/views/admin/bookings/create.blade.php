@@ -95,6 +95,45 @@
         justify-content: center;
     }
 
+    .premium-time-input {
+        position: relative;
+    }
+
+    .premium-time-icon {
+        position: absolute;
+        top: 50%;
+        left: 16px;
+        transform: translateY(-50%);
+        color: #0077b6;
+        font-size: 20px;
+        z-index: 2;
+    }
+
+    .premium-time-input input {
+        padding-left: 48px;
+        font-weight: 800;
+        color: #023e8a;
+        background: #f8fdff;
+        border: 1px solid #d8f3ff;
+    }
+
+    .premium-time-input input:focus {
+        background: #ffffff;
+        border-color: #00b4d8;
+        box-shadow: 0 0 0 0.2rem rgba(0, 180, 216, 0.15);
+    }
+
+    .time-helper-box {
+        border-radius: 18px;
+        background: #f8fdff;
+        border: 1px solid #d8f3ff;
+        padding: 14px 16px;
+        margin-top: 12px;
+        color: #64748b;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
     .guide-card {
         border: none;
         border-radius: 26px;
@@ -237,7 +276,7 @@
                         <div class="col-md-6">
                             <label class="form-label">Customer</label>
 
-                            <select name="user_id" class="form-select" required>
+                            <select name="user_id" class="form-select @error('user_id') is-invalid @enderror" required>
                                 <option value="">Select Customer</option>
 
                                 @foreach($customers as $customer)
@@ -257,7 +296,7 @@
 
                             <input type="text"
                                    name="contact_number"
-                                   class="form-control"
+                                   class="form-control @error('contact_number') is-invalid @enderror"
                                    value="{{ old('contact_number') }}"
                                    placeholder="09XXXXXXXXX"
                                    required>
@@ -272,7 +311,7 @@
 
                             <input type="email"
                                    name="email"
-                                   class="form-control"
+                                   class="form-control @error('email') is-invalid @enderror"
                                    value="{{ old('email') }}"
                                    placeholder="customer@email.com"
                                    required>
@@ -294,12 +333,20 @@
                         <div class="col-md-6">
                             <label class="form-label">Cruise</label>
 
-                            <select name="cruise_id" class="form-select" required>
+                            <select name="cruise_id"
+                                    id="cruise_id"
+                                    class="form-select @error('cruise_id') is-invalid @enderror"
+                                    required>
+
                                 <option value="">Select Cruise</option>
 
                                 @foreach($cruises as $cruise)
-                                    <option value="{{ $cruise->id }}" {{ old('cruise_id') == $cruise->id ? 'selected' : '' }}>
+                                    <option value="{{ $cruise->id }}"
+                                            data-departure-raw="{{ \Carbon\Carbon::parse($cruise->departure_date)->format('Y-m-d') }}"
+                                            {{ old('cruise_id') == $cruise->id ? 'selected' : '' }}>
+
                                         {{ $cruise->cruise_name }} — {{ $cruise->destination }} — Slots: {{ $cruise->available_slots }}
+
                                     </option>
                                 @endforeach
                             </select>
@@ -314,7 +361,7 @@
 
                             <input type="number"
                                    name="passenger_count"
-                                   class="form-control"
+                                   class="form-control @error('passenger_count') is-invalid @enderror"
                                    value="{{ old('passenger_count', 1) }}"
                                    min="1"
                                    required>
@@ -330,7 +377,7 @@
                             <input type="date"
                                    name="booking_date"
                                    id="booking_date"
-                                   class="form-control"
+                                   class="form-control @error('booking_date') is-invalid @enderror"
                                    value="{{ old('booking_date') }}"
                                    min="{{ now()->format('Y-m-d') }}"
                                    required>
@@ -343,14 +390,23 @@
                         <div class="col-md-6">
                             <label class="form-label">Booking Time</label>
 
-                            <input type="time"
-                                   name="booking_time"
-                                   class="form-control"
-                                   value="{{ old('booking_time') }}"
-                                   required>
+                            <div class="premium-time-input">
+                                <i class="bi bi-clock premium-time-icon"></i>
+
+                                <input type="time"
+                                       name="booking_time"
+                                       class="form-control @error('booking_time') is-invalid @enderror"
+                                       value="{{ old('booking_time') }}"
+                                       required>
+                            </div>
+
+                            <div class="time-helper-box">
+                                <i class="bi bi-info-circle"></i>
+                                Choose any booking time within 24 hours. Same cruise, date, and time cannot be booked twice.
+                            </div>
 
                             @error('booking_time')
-                                <small class="text-danger">{{ $message }}</small>
+                                <small class="text-danger d-block mt-2">{{ $message }}</small>
                             @enderror
                         </div>
 
@@ -366,8 +422,8 @@
                         <div class="col-md-6">
                             <label class="form-label">Booking Status</label>
 
-                            <select name="booking_status" class="form-select" required>
-                                <option value="Pending" {{ old('booking_status') === 'Pending' ? 'selected' : '' }}>Pending</option>
+                            <select name="booking_status" class="form-select @error('booking_status') is-invalid @enderror" required>
+                                <option value="Pending" {{ old('booking_status', 'Pending') === 'Pending' ? 'selected' : '' }}>Pending</option>
                                 <option value="Approved" {{ old('booking_status') === 'Approved' ? 'selected' : '' }}>Approved</option>
                                 <option value="Rejected" {{ old('booking_status') === 'Rejected' ? 'selected' : '' }}>Rejected</option>
                                 <option value="Cancelled" {{ old('booking_status') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
@@ -413,7 +469,7 @@
 
                         <input type="file"
                                name="confirmation_file"
-                               class="form-control"
+                               class="form-control @error('confirmation_file') is-invalid @enderror"
                                accept=".pdf,.jpg,.jpeg,.png">
 
                         @error('confirmation_file')
@@ -440,13 +496,18 @@
                     </div>
 
                     <div class="guide-item">
+                        <i class="bi bi-calendar-check"></i>
+                        <small>Booking date must be on or before the cruise departure date.</small>
+                    </div>
+
+                    <div class="guide-item">
                         <i class="bi bi-people"></i>
                         <small>Passenger count should not exceed the available cruise slots.</small>
                     </div>
 
                     <div class="guide-item mb-0">
-                        <i class="bi bi-calendar-check"></i>
-                        <small>Approved and pending bookings consume cruise slots.</small>
+                        <i class="bi bi-clock"></i>
+                        <small>Choose any booking time within 24 hours.</small>
                     </div>
 
                 </div>
@@ -478,37 +539,90 @@
 @push('scripts')
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            const cruiseSelect = document.getElementById('cruise_id');
             const bookingDateInput = document.getElementById('booking_date');
 
-            if (!bookingDateInput) {
-                return;
+            function showWarning(title, text) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: title,
+                        text: text,
+                        confirmButtonText: 'Choose Another Date',
+                        confirmButtonColor: '#0d6efd',
+                        background: '#ffffff',
+                        color: '#1f2937'
+                    });
+                } else {
+                    alert(text);
+                }
             }
 
-            bookingDateInput.addEventListener('change', function () {
+            function getSelectedCruiseDepartureDate() {
+                const selectedOption = cruiseSelect.options[cruiseSelect.selectedIndex];
+
+                if (!selectedOption || !selectedOption.value || !selectedOption.dataset.departureRaw) {
+                    return null;
+                }
+
+                const departureDate = new Date(selectedOption.dataset.departureRaw + 'T00:00:00');
+                departureDate.setHours(0, 0, 0, 0);
+
+                return departureDate;
+            }
+
+            function validateBookingDate() {
+                if (!bookingDateInput || !bookingDateInput.value) {
+                    return;
+                }
+
                 const today = new Date();
                 today.setHours(0, 0, 0, 0);
 
-                const selectedDate = new Date(this.value + 'T00:00:00');
+                const selectedDate = new Date(bookingDateInput.value + 'T00:00:00');
                 selectedDate.setHours(0, 0, 0, 0);
 
-                if (selectedDate < today) {
-                    this.value = '';
+                const cruiseDepartureDate = getSelectedCruiseDepartureDate();
 
-                    if (typeof Swal !== 'undefined') {
-                        Swal.fire({
-                            icon: 'warning',
-                            title: 'Past Date Not Allowed',
-                            text: 'You cannot select a past date. Please choose today or a future date.',
-                            confirmButtonText: 'Choose Another Date',
-                            confirmButtonColor: '#0d6efd',
-                            background: '#ffffff',
-                            color: '#1f2937'
-                        });
-                    } else {
-                        alert('You cannot select a past date. Please choose today or a future date.');
-                    }
+                if (!cruiseSelect.value) {
+                    bookingDateInput.value = '';
+
+                    showWarning(
+                        'Choose Cruise First',
+                        'Please choose a cruise before selecting a booking date.'
+                    );
+
+                    return;
                 }
-            });
+
+                if (selectedDate < today) {
+                    bookingDateInput.value = '';
+
+                    showWarning(
+                        'Past Date Not Allowed',
+                        'You cannot select a past date. Please choose today or a future date.'
+                    );
+
+                    return;
+                }
+
+                if (cruiseDepartureDate && selectedDate > cruiseDepartureDate) {
+                    bookingDateInput.value = '';
+
+                    showWarning(
+                        'Date After Departure Not Allowed',
+                        'You cannot book after the cruise departure date. Please select a date on or before the selected cruise departure date.'
+                    );
+                }
+            }
+
+            if (bookingDateInput) {
+                bookingDateInput.addEventListener('change', validateBookingDate);
+            }
+
+            if (cruiseSelect) {
+                cruiseSelect.addEventListener('change', validateBookingDate);
+            }
         });
     </script>
 @endpush

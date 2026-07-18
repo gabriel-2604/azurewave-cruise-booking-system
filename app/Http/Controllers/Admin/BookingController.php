@@ -56,7 +56,7 @@ class BookingController extends Controller
             ->orderBy('name')
             ->get();
 
-        $cruises = Cruise::where('status', '!=', 'Cancelled')
+        $cruises = Cruise::whereNotIn('status', ['Cancelled', 'Completed'])
             ->whereDate('departure_date', '>=', today())
             ->orderBy('departure_date')
             ->get();
@@ -109,12 +109,28 @@ class BookingController extends Controller
 
         $cruise = Cruise::findOrFail($data['cruise_id']);
 
+        if ($this->bookingDateIsAfterDeparture($data['booking_date'], $cruise)) {
+            return back()
+                ->withErrors([
+                    'booking_date' => 'You cannot book a date after the cruise departure date. This cruise departs on ' . Carbon::parse($cruise->departure_date)->format('M d, Y') . '.',
+                ])
+                ->withInput();
+        }
+
         if ($this->cruiseHasDeparted($cruise)) {
             $this->updateCruiseStatus($cruise);
 
             return back()
                 ->withErrors([
                     'cruise_id' => 'This cruise has already departed. Please choose another available cruise.',
+                ])
+                ->withInput();
+        }
+
+        if ($cruise->status === 'Completed') {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise is already completed. Please choose another available cruise.',
                 ])
                 ->withInput();
         }
@@ -149,14 +165,12 @@ class BookingController extends Controller
                 ->withInput();
         }
 
-        if ($this->consumesSlots($data['booking_status'])) {
-            if ($data['passenger_count'] > $cruise->available_slots) {
-                return back()
-                    ->withErrors([
-                        'passenger_count' => 'Not enough available slots for this cruise.',
-                    ])
-                    ->withInput();
-            }
+        if ($this->consumesSlots($data['booking_status']) && $data['passenger_count'] > $cruise->available_slots) {
+            return back()
+                ->withErrors([
+                    'passenger_count' => 'Not enough available slots for this cruise.',
+                ])
+                ->withInput();
         }
 
         if ($request->hasFile('confirmation_file')) {
@@ -198,8 +212,11 @@ class BookingController extends Controller
             ->get();
 
         $cruises = Cruise::where(function ($query) use ($booking) {
-                $query->whereDate('departure_date', '>=', today())
-                    ->orWhere('id', $booking->cruise_id);
+                $query->where(function ($activeQuery) {
+                    $activeQuery->whereNotIn('status', ['Cancelled', 'Completed'])
+                        ->whereDate('departure_date', '>=', today());
+                })
+                ->orWhere('id', $booking->cruise_id);
             })
             ->orderBy('departure_date')
             ->get();
@@ -218,6 +235,14 @@ class BookingController extends Controller
         $oldCruise = $booking->cruise;
         $newCruise = Cruise::findOrFail($data['cruise_id']);
 
+        if ($this->bookingDateIsAfterDeparture($data['booking_date'], $newCruise)) {
+            return back()
+                ->withErrors([
+                    'booking_date' => 'You cannot book a date after the cruise departure date. This cruise departs on ' . Carbon::parse($newCruise->departure_date)->format('M d, Y') . '.',
+                ])
+                ->withInput();
+        }
+
         if (
             $this->consumesSlots($data['booking_status']) &&
             $this->cruiseHasDeparted($newCruise)
@@ -227,6 +252,28 @@ class BookingController extends Controller
             return back()
                 ->withErrors([
                     'cruise_id' => 'This cruise has already departed. You cannot assign an active booking to this cruise.',
+                ])
+                ->withInput();
+        }
+
+        if (
+            $this->consumesSlots($data['booking_status']) &&
+            $newCruise->status === 'Completed'
+        ) {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise is already completed. You cannot assign an active booking to this cruise.',
+                ])
+                ->withInput();
+        }
+
+        if (
+            $this->consumesSlots($data['booking_status']) &&
+            $newCruise->status === 'Cancelled'
+        ) {
+            return back()
+                ->withErrors([
+                    'cruise_id' => 'This cruise has been cancelled. Please choose another cruise.',
                 ])
                 ->withInput();
         }
@@ -242,14 +289,6 @@ class BookingController extends Controller
             return back()
                 ->withErrors([
                     'booking_date' => 'This cruise schedule is no longer available. Please choose another available date or time.',
-                ])
-                ->withInput();
-        }
-
-        if ($newCruise->status === 'Cancelled' && $this->consumesSlots($data['booking_status'])) {
-            return back()
-                ->withErrors([
-                    'cruise_id' => 'This cruise has been cancelled. Please choose another cruise.',
                 ])
                 ->withInput();
         }
@@ -285,7 +324,7 @@ class BookingController extends Controller
         }
 
         DB::transaction(function () use ($booking, $data, $oldCruise, $newCruise) {
-            if ($this->consumesSlots($booking->booking_status)) {
+            if ($oldCruise && $this->consumesSlots($booking->booking_status)) {
                 $oldCruise->increment('available_slots', $booking->passenger_count);
             }
 
@@ -293,15 +332,19 @@ class BookingController extends Controller
 
             $this->createBookingLog($booking, 'Booking Updated');
 
-            if ($this->consumesSlots($booking->booking_status)) {
+            if ($newCruise && $this->consumesSlots($booking->booking_status)) {
                 $newCruise->decrement('available_slots', $booking->passenger_count);
             }
 
-            $oldCruise->refresh();
-            $newCruise->refresh();
+            if ($oldCruise) {
+                $oldCruise->refresh();
+                $this->updateCruiseStatus($oldCruise);
+            }
 
-            $this->updateCruiseStatus($oldCruise);
-            $this->updateCruiseStatus($newCruise);
+            if ($newCruise) {
+                $newCruise->refresh();
+                $this->updateCruiseStatus($newCruise);
+            }
         });
 
         return redirect()
@@ -314,7 +357,7 @@ class BookingController extends Controller
         $cruise = $booking->cruise;
 
         DB::transaction(function () use ($booking, $cruise) {
-            if ($this->consumesSlots($booking->booking_status)) {
+            if ($cruise && $this->consumesSlots($booking->booking_status)) {
                 $cruise->increment('available_slots', $booking->passenger_count);
             }
 
@@ -326,9 +369,10 @@ class BookingController extends Controller
 
             $booking->delete();
 
-            $cruise->refresh();
-
-            $this->updateCruiseStatus($cruise);
+            if ($cruise) {
+                $cruise->refresh();
+                $this->updateCruiseStatus($cruise);
+            }
         });
 
         return redirect()
@@ -354,12 +398,24 @@ class BookingController extends Controller
                 ->with('error', 'Cannot approve booking because the cruise record no longer exists.');
         }
 
+        if ($this->bookingDateIsAfterDeparture($booking->booking_date, $cruise)) {
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', 'Cannot approve booking because the booking date is after the cruise departure date.');
+        }
+
         if ($this->cruiseHasDeparted($cruise)) {
             $this->updateCruiseStatus($cruise);
 
             return redirect()
                 ->route('bookings.index')
                 ->with('error', 'Cannot approve booking because the cruise departure date has already passed.');
+        }
+
+        if ($cruise->status === 'Completed') {
+            return redirect()
+                ->route('bookings.index')
+                ->with('error', 'Cannot approve booking because the cruise is already completed.');
         }
 
         if ($cruise->status === 'Cancelled') {
@@ -494,9 +550,20 @@ class BookingController extends Controller
 
     private function cruiseHasDeparted(Cruise $cruise): bool
     {
-        $departureDateTime = Carbon::parse($cruise->departure_date . ' ' . $cruise->departure_time);
+        $departureDate = Carbon::parse($cruise->departure_date)->format('Y-m-d');
+        $departureTime = Carbon::parse($cruise->departure_time)->format('H:i:s');
+
+        $departureDateTime = Carbon::parse($departureDate . ' ' . $departureTime);
 
         return $departureDateTime->isPast();
+    }
+
+    private function bookingDateIsAfterDeparture(string $bookingDate, Cruise $cruise): bool
+    {
+        $selectedBookingDate = Carbon::parse($bookingDate)->format('Y-m-d');
+        $cruiseDepartureDate = Carbon::parse($cruise->departure_date)->format('Y-m-d');
+
+        return $selectedBookingDate > $cruiseDepartureDate;
     }
 
     private function updateCruiseStatus(Cruise $cruise): void
