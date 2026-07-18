@@ -239,15 +239,18 @@
         .swal2-popup {
             border-radius: 24px !important;
             font-family: 'Poppins', sans-serif !important;
+            padding: 28px !important;
         }
 
         .swal2-title {
             font-weight: 900 !important;
+            color: #023e8a !important;
         }
 
         .swal2-html-container,
         .swal2-content {
             font-weight: 500 !important;
+            color: #1f2937 !important;
         }
 
         .swal2-confirm,
@@ -255,6 +258,7 @@
             border-radius: 14px !important;
             padding: 10px 20px !important;
             font-weight: 800 !important;
+            box-shadow: none !important;
         }
 
         @media (max-width: 991px) {
@@ -334,18 +338,14 @@
     {{-- SweetAlert2 --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    {{-- Global Admin SweetAlert Helpers --}}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            const successMessage = @json(session('success'));
-            const errorMessage = @json(session('error'));
-            const validationErrors = @json($errors->all());
-
-            if (successMessage) {
+        window.AdminAlert = {
+            success: function (message, title = 'Success!') {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Success!',
-                    text: successMessage,
+                    title: title,
+                    text: message,
                     confirmButtonText: 'Okay',
                     confirmButtonColor: '#0077b6',
                     background: '#ffffff',
@@ -353,18 +353,66 @@
                     timer: 2500,
                     timerProgressBar: true
                 });
-            }
+            },
 
-            if (errorMessage) {
+            error: function (message, title = 'Action Failed') {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Action Failed',
-                    text: errorMessage,
+                    title: title,
+                    text: message,
                     confirmButtonText: 'Okay',
                     confirmButtonColor: '#dc3545',
                     background: '#ffffff',
                     color: '#1f2937'
                 });
+            },
+
+            warning: function (message, title = 'Warning') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: title,
+                    text: message,
+                    confirmButtonText: 'Okay',
+                    confirmButtonColor: '#ffc107',
+                    background: '#ffffff',
+                    color: '#1f2937'
+                });
+            },
+
+            info: function (message, title = 'Information') {
+                Swal.fire({
+                    icon: 'info',
+                    title: title,
+                    text: message,
+                    confirmButtonText: 'Okay',
+                    confirmButtonColor: '#0077b6',
+                    background: '#ffffff',
+                    color: '#1f2937'
+                });
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const successMessage = @json(session('success'));
+            const errorMessage = @json(session('error'));
+            const warningMessage = @json(session('warning'));
+            const infoMessage = @json(session('info'));
+            const validationErrors = @json($errors->all());
+
+            if (successMessage) {
+                AdminAlert.success(successMessage);
+            }
+
+            if (errorMessage) {
+                AdminAlert.error(errorMessage);
+            }
+
+            if (warningMessage) {
+                AdminAlert.warning(warningMessage, 'Warning');
+            }
+
+            if (infoMessage) {
+                AdminAlert.info(infoMessage);
             }
 
             if (validationErrors.length > 0) {
@@ -416,7 +464,6 @@
                     });
                 });
             });
-
         });
     </script>
 

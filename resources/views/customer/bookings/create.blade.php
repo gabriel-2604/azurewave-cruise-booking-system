@@ -774,6 +774,22 @@
             const selectedDateText = document.getElementById('selectedDateText');
             const calendarElement = document.getElementById('bookingCalendar');
 
+            function showWarning(title, text) {
+                if (typeof Swal !== 'undefined') {
+                    Swal.fire({
+                        icon: 'warning',
+                        title: title,
+                        text: text,
+                        confirmButtonText: 'Choose Another Date',
+                        confirmButtonColor: '#0d6efd',
+                        background: '#ffffff',
+                        color: '#1f2937'
+                    });
+                } else {
+                    alert(text);
+                }
+            }
+
             function updateCruiseInfo() {
                 const selectedOption = cruiseSelect.options[cruiseSelect.selectedIndex];
 
@@ -830,11 +846,19 @@
                     const today = new Date();
                     today.setHours(0, 0, 0, 0);
 
-                    const selectedDate = new Date(info.dateStr);
+                    const selectedDate = new Date(info.dateStr + 'T00:00:00');
                     selectedDate.setHours(0, 0, 0, 0);
 
                     if (selectedDate < today) {
-                        alert('You cannot select a past date.');
+                        bookingDateInput.value = '';
+
+                        selectedDateText.textContent = 'No date selected yet';
+
+                        showWarning(
+                            'Past Date Not Allowed',
+                            'You cannot select a past date. Please choose today or a future date.'
+                        );
+
                         return;
                     }
 
@@ -858,7 +882,17 @@
                 },
 
                 eventClick: function(info) {
-                    alert('This date already has a booking for the selected cruise schedule.');
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'info',
+                            title: 'Unavailable Schedule',
+                            text: 'This date already has a booking for the selected cruise schedule.',
+                            confirmButtonText: 'Okay',
+                            confirmButtonColor: '#0d6efd'
+                        });
+                    } else {
+                        alert('This date already has a booking for the selected cruise schedule.');
+                    }
                 },
 
                 eventDidMount: function(info) {

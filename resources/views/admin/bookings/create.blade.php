@@ -246,6 +246,10 @@
                                     </option>
                                 @endforeach
                             </select>
+
+                            @error('user_id')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
@@ -257,6 +261,10 @@
                                    value="{{ old('contact_number') }}"
                                    placeholder="09XXXXXXXXX"
                                    required>
+
+                            @error('contact_number')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                         <div class="col-12">
@@ -268,6 +276,10 @@
                                    value="{{ old('email') }}"
                                    placeholder="customer@email.com"
                                    required>
+
+                            @error('email')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                     </div>
@@ -291,6 +303,10 @@
                                     </option>
                                 @endforeach
                             </select>
+
+                            @error('cruise_id')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
@@ -302,6 +318,10 @@
                                    value="{{ old('passenger_count', 1) }}"
                                    min="1"
                                    required>
+
+                            @error('passenger_count')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
@@ -309,10 +329,15 @@
 
                             <input type="date"
                                    name="booking_date"
+                                   id="booking_date"
                                    class="form-control"
                                    value="{{ old('booking_date') }}"
                                    min="{{ now()->format('Y-m-d') }}"
                                    required>
+
+                            @error('booking_date')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
@@ -323,6 +348,10 @@
                                    class="form-control"
                                    value="{{ old('booking_time') }}"
                                    required>
+
+                            @error('booking_time')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                     </div>
@@ -344,6 +373,10 @@
                                 <option value="Cancelled" {{ old('booking_status') === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
                                 <option value="Completed" {{ old('booking_status') === 'Completed' ? 'selected' : '' }}>Completed</option>
                             </select>
+
+                            @error('booking_status')
+                                <small class="text-danger">{{ $message }}</small>
+                            @enderror
                         </div>
 
                     </div>
@@ -382,6 +415,10 @@
                                name="confirmation_file"
                                class="form-control"
                                accept=".pdf,.jpg,.jpeg,.png">
+
+                        @error('confirmation_file')
+                            <small class="text-danger d-block mt-2">{{ $message }}</small>
+                        @enderror
 
                     </div>
 
@@ -437,3 +474,41 @@
 </form>
 
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const bookingDateInput = document.getElementById('booking_date');
+
+            if (!bookingDateInput) {
+                return;
+            }
+
+            bookingDateInput.addEventListener('change', function () {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const selectedDate = new Date(this.value + 'T00:00:00');
+                selectedDate.setHours(0, 0, 0, 0);
+
+                if (selectedDate < today) {
+                    this.value = '';
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Past Date Not Allowed',
+                            text: 'You cannot select a past date. Please choose today or a future date.',
+                            confirmButtonText: 'Choose Another Date',
+                            confirmButtonColor: '#0d6efd',
+                            background: '#ffffff',
+                            color: '#1f2937'
+                        });
+                    } else {
+                        alert('You cannot select a past date. Please choose today or a future date.');
+                    }
+                }
+            });
+        });
+    </script>
+@endpush

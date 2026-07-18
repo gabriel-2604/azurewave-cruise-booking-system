@@ -391,11 +391,12 @@
                             </label>
 
                             <input type="date"
-                                   name="booking_date"
-                                   class="form-control"
-                                   value="{{ old('booking_date', $booking->booking_date) }}"
-                                   min="{{ now()->format('Y-m-d') }}"
-                                   required>
+                            name="booking_date"
+                             id="booking_date"
+                            class="form-control"
+                            value="{{ old('booking_date', $booking->booking_date) }}"
+                             min="{{ now()->format('Y-m-d') }}"
+                            required>
                         </div>
 
                         <div class="col-md-6">
@@ -668,3 +669,41 @@
 </form>
 
 @endsection
+
+@push('scripts')
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const bookingDateInput = document.getElementById('booking_date');
+
+            if (!bookingDateInput) {
+                return;
+            }
+
+            bookingDateInput.addEventListener('change', function () {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                const selectedDate = new Date(this.value + 'T00:00:00');
+                selectedDate.setHours(0, 0, 0, 0);
+
+                if (selectedDate < today) {
+                    this.value = '';
+
+                    if (typeof Swal !== 'undefined') {
+                        Swal.fire({
+                            icon: 'warning',
+                            title: 'Past Date Not Allowed',
+                            text: 'You cannot select a past date. Please choose today or a future date.',
+                            confirmButtonText: 'Choose Another Date',
+                            confirmButtonColor: '#0d6efd',
+                            background: '#ffffff',
+                            color: '#1f2937'
+                        });
+                    } else {
+                        alert('You cannot select a past date. Please choose today or a future date.');
+                    }
+                }
+            });
+        });
+    </script>
+@endpush

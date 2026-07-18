@@ -31,13 +31,8 @@
             background: #f4f9ff;
             min-height: 100vh;
             overflow-x: hidden;
+            color: #1f2937;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Customer Sidebar
-        |--------------------------------------------------------------------------
-        */
 
         .customer-sidebar {
             position: fixed;
@@ -46,6 +41,7 @@
             width: 285px;
             height: 100vh;
             background:
+                radial-gradient(circle at top right, rgba(255, 214, 10, 0.18), transparent 28%),
                 linear-gradient(180deg, rgba(2, 62, 138, 0.98), rgba(0, 119, 182, 0.96)),
                 url("{{ asset('images/hero.jpg') }}");
             background-size: cover;
@@ -123,6 +119,7 @@
             background: rgba(255, 255, 255, 0.14);
             backdrop-filter: blur(10px);
             margin-bottom: 24px;
+            border: 1px solid rgba(255, 255, 255, 0.12);
         }
 
         .user-avatar {
@@ -210,7 +207,7 @@
             border: none;
             border-radius: 18px;
             padding: 13px 14px;
-            background: rgba(220, 53, 69, 0.92);
+            background: linear-gradient(135deg, #dc3545, #b42318);
             color: white;
             font-weight: 800;
             display: flex;
@@ -221,15 +218,9 @@
         }
 
         .logout-btn:hover {
-            background: #dc3545;
+            background: linear-gradient(135deg, #b42318, #7f1d1d);
             transform: translateY(-2px);
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Main Content
-        |--------------------------------------------------------------------------
-        */
 
         .main-content {
             margin-left: 285px;
@@ -285,12 +276,6 @@
             flex-shrink: 0;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Old Customer Cards Compatibility
-        |--------------------------------------------------------------------------
-        */
-
         .customer-welcome-card {
             background: linear-gradient(135deg, #0d6efd, #0dcaf0);
             border: none;
@@ -318,24 +303,21 @@
             transform: translateY(-4px);
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | SweetAlert Popup Style
-        |--------------------------------------------------------------------------
-        */
-
         .swal2-popup {
             border-radius: 24px !important;
             font-family: 'Poppins', sans-serif !important;
+            padding: 28px !important;
         }
 
         .swal2-title {
             font-weight: 900 !important;
+            color: #023e8a !important;
         }
 
         .swal2-html-container,
         .swal2-content {
             font-weight: 500 !important;
+            color: #1f2937 !important;
         }
 
         .swal2-confirm,
@@ -343,24 +325,13 @@
             border-radius: 14px !important;
             padding: 10px 20px !important;
             font-weight: 800 !important;
+            box-shadow: none !important;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Footer
-        |--------------------------------------------------------------------------
-        */
 
         .customer-footer {
             color: #64748b;
             font-weight: 500;
         }
-
-        /*
-        |--------------------------------------------------------------------------
-        | Responsive
-        |--------------------------------------------------------------------------
-        */
 
         @media (max-width: 991px) {
             .customer-sidebar {
@@ -474,9 +445,7 @@
 
                     <i class="bi bi-speedometer2"></i>
 
-                    <span>
-                        Dashboard
-                    </span>
+                    <span>Dashboard</span>
 
                 </a>
             </li>
@@ -487,9 +456,7 @@
 
                     <i class="bi bi-calendar3"></i>
 
-                    <span>
-                        My Event Calendar
-                    </span>
+                    <span>My Event Calendar</span>
 
                 </a>
             </li>
@@ -500,9 +467,7 @@
 
                     <i class="bi bi-calendar-plus"></i>
 
-                    <span>
-                        Create Booking
-                    </span>
+                    <span>Create Booking</span>
 
                 </a>
             </li>
@@ -513,9 +478,7 @@
 
                     <i class="bi bi-list-check"></i>
 
-                    <span>
-                        My Bookings
-                    </span>
+                    <span>My Bookings</span>
 
                 </a>
             </li>
@@ -526,9 +489,7 @@
 
                     <i class="bi bi-person-circle"></i>
 
-                    <span>
-                        My Profile
-                    </span>
+                    <span>My Profile</span>
 
                 </a>
             </li>
@@ -552,9 +513,7 @@
 
                     <i class="bi bi-box-arrow-right"></i>
 
-                    <span>
-                        Logout
-                    </span>
+                    <span>Logout</span>
 
                 </button>
 
@@ -618,18 +577,14 @@
     {{-- SweetAlert2 --}}
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    {{-- Global Customer SweetAlert Helpers --}}
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-
-            const successMessage = @json(session('success'));
-            const errorMessage = @json(session('error'));
-            const validationErrors = @json($errors->all());
-
-            if (successMessage) {
+        window.CustomerAlert = {
+            success: function (message, title = 'Success!') {
                 Swal.fire({
                     icon: 'success',
-                    title: 'Success!',
-                    text: successMessage,
+                    title: title,
+                    text: message,
                     confirmButtonText: 'Okay',
                     confirmButtonColor: '#0077b6',
                     background: '#ffffff',
@@ -637,18 +592,66 @@
                     timer: 2500,
                     timerProgressBar: true
                 });
-            }
+            },
 
-            if (errorMessage) {
+            error: function (message, title = 'Action Failed') {
                 Swal.fire({
                     icon: 'error',
-                    title: 'Action Failed',
-                    text: errorMessage,
+                    title: title,
+                    text: message,
                     confirmButtonText: 'Okay',
                     confirmButtonColor: '#dc3545',
                     background: '#ffffff',
                     color: '#1f2937'
                 });
+            },
+
+            warning: function (message, title = 'Warning') {
+                Swal.fire({
+                    icon: 'warning',
+                    title: title,
+                    text: message,
+                    confirmButtonText: 'Okay',
+                    confirmButtonColor: '#ffc107',
+                    background: '#ffffff',
+                    color: '#1f2937'
+                });
+            },
+
+            info: function (message, title = 'Information') {
+                Swal.fire({
+                    icon: 'info',
+                    title: title,
+                    text: message,
+                    confirmButtonText: 'Okay',
+                    confirmButtonColor: '#0077b6',
+                    background: '#ffffff',
+                    color: '#1f2937'
+                });
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', function () {
+            const successMessage = @json(session('success'));
+            const errorMessage = @json(session('error'));
+            const warningMessage = @json(session('warning'));
+            const infoMessage = @json(session('info'));
+            const validationErrors = @json($errors->all());
+
+            if (successMessage) {
+                CustomerAlert.success(successMessage);
+            }
+
+            if (errorMessage) {
+                CustomerAlert.error(errorMessage);
+            }
+
+            if (warningMessage) {
+                CustomerAlert.warning(warningMessage, 'Warning');
+            }
+
+            if (infoMessage) {
+                CustomerAlert.info(infoMessage);
             }
 
             if (validationErrors.length > 0) {
@@ -700,10 +703,10 @@
                     });
                 });
             });
-
         });
     </script>
 
+    {{-- Extra Page Scripts --}}
     @stack('scripts')
 
 </body>
