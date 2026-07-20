@@ -19,7 +19,7 @@ class DatabaseSeeder extends Seeder
                 'name' => 'System Administrator',
                 'phone' => '09123456789',
                 'role' => 'admin',
-                'password' => Hash::make('admin123'),
+                'password' => Hash::make('AzureWave@2026Admin!'),
             ]
         );
     }
