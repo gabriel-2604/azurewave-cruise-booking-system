@@ -7,6 +7,8 @@ RUN apt-get update && apt-get install -y \
     unzip \
     zip \
     curl \
+    nodejs \
+    npm \
     libpng-dev \
     libjpeg-dev \
     libfreetype6-dev \
@@ -25,8 +27,11 @@ COPY . .
 
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
-RUN chown -R www-data:www-data storage bootstrap/cache \
-    && chmod -R 775 storage bootstrap/cache
+RUN npm install
+RUN npm run build
+
+RUN chown -R www-data:www-data storage bootstrap/cache public/build \
+    && chmod -R 775 storage bootstrap/cache public/build
 
 COPY docker/000-default.conf /etc/apache2/sites-available/000-default.conf
 COPY docker/start.sh /usr/local/bin/start.sh
