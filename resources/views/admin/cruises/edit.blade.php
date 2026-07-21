@@ -159,18 +159,46 @@
         font-weight: 800;
         display: inline-flex;
         align-items: center;
+        justify-content: center;
         gap: 8px;
+    }
+
+    .bottom-action-card {
+        position: sticky;
+        bottom: 18px;
+        z-index: 20;
+        border: none;
+        border-radius: 24px;
+        box-shadow: 0 20px 55px rgba(15, 23, 42, 0.16);
+        background: rgba(255, 255, 255, 0.94);
+        backdrop-filter: blur(10px);
+    }
+
+    .bottom-action-card .card-body {
+        padding: 18px 22px;
+    }
+
+    @media (max-width: 768px) {
+        .bottom-action-card {
+            position: static;
+        }
+
+        .bottom-action-card .card-body {
+            flex-direction: column-reverse;
+            align-items: stretch !important;
+        }
+
+        .bottom-action-card .btn {
+            width: 100%;
+        }
     }
 </style>
 
 <div class="card form-hero mb-4">
-
     <div class="card-body p-4 p-lg-5">
-
         <div class="row align-items-center">
 
             <div class="col-lg-8">
-
                 <div class="form-badge">
                     <i class="bi bi-pencil-square"></i>
                     Edit Cruise
@@ -189,11 +217,9 @@
                     <i class="bi bi-arrow-left"></i>
                     Back to Cruise Management
                 </a>
-
             </div>
 
             <div class="col-lg-4 text-lg-end mt-4 mt-lg-0">
-
                 <div class="display-1">
                     🛳️
                 </div>
@@ -205,17 +231,28 @@
                 <p class="mb-0 opacity-75">
                     Edit voyage details.
                 </p>
-
             </div>
 
         </div>
-
     </div>
-
 </div>
 
-<form method="POST" action="{{ route('cruises.update', $cruise) }}" enctype="multipart/form-data">
+@if ($errors->any())
+    <div class="alert alert-danger rounded-4 border-0 shadow-sm mb-4">
+        <div class="fw-bold mb-2">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Please fix the following errors:
+        </div>
 
+        <ul class="mb-0">
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
+
+<form method="POST" action="{{ route('cruises.update', $cruise) }}" enctype="multipart/form-data">
     @csrf
     @method('PUT')
 
@@ -224,9 +261,7 @@
         <div class="col-lg-8">
 
             <div class="card premium-form-card mb-4">
-
                 <div class="card-header">
-
                     <h5 class="fw-bold mb-1">
                         Cruise Information
                     </h5>
@@ -234,7 +269,6 @@
                     <small class="text-muted">
                         Update the selected cruise record.
                     </small>
-
                 </div>
 
                 <div class="card-body">
@@ -248,27 +282,66 @@
 
                         <div class="col-md-6">
                             <label class="form-label">Cruise Name</label>
-                            <input type="text" name="cruise_name" class="form-control" value="{{ old('cruise_name', $cruise->cruise_name) }}" required>
+                            <input type="text"
+                                   name="cruise_name"
+                                   class="form-control @error('cruise_name') is-invalid @enderror"
+                                   value="{{ old('cruise_name', $cruise->cruise_name) }}"
+                                   required>
+
+                            @error('cruise_name')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Destination</label>
-                            <input type="text" name="destination" class="form-control" value="{{ old('destination', $cruise->destination) }}" required>
+                            <input type="text"
+                                   name="destination"
+                                   class="form-control @error('destination') is-invalid @enderror"
+                                   value="{{ old('destination', $cruise->destination) }}"
+                                   required>
+
+                            @error('destination')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Departure Port</label>
-                            <input type="text" name="departure_port" class="form-control" value="{{ old('departure_port', $cruise->departure_port) }}" required>
+                            <input type="text"
+                                   name="departure_port"
+                                   class="form-control @error('departure_port') is-invalid @enderror"
+                                   value="{{ old('departure_port', $cruise->departure_port) }}"
+                                   required>
+
+                            @error('departure_port')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-6">
                             <label class="form-label">Ticket Price</label>
-                            <input type="number" step="0.01" min="0" name="ticket_price" class="form-control" value="{{ old('ticket_price', $cruise->ticket_price) }}" required>
+                            <input type="number"
+                                   step="0.01"
+                                   min="0"
+                                   name="ticket_price"
+                                   class="form-control @error('ticket_price') is-invalid @enderror"
+                                   value="{{ old('ticket_price', $cruise->ticket_price) }}"
+                                   required>
+
+                            @error('ticket_price')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-12">
                             <label class="form-label">Description</label>
-                            <textarea name="description" class="form-control">{{ old('description', $cruise->description) }}</textarea>
+                            <textarea name="description"
+                                      class="form-control @error('description') is-invalid @enderror">{{ old('description', $cruise->description) }}</textarea>
+
+                            @error('description')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                     </div>
@@ -282,17 +355,41 @@
 
                         <div class="col-md-4">
                             <label class="form-label">Departure Date</label>
-                            <input type="date" name="departure_date" class="form-control" value="{{ old('departure_date', $cruise->departure_date) }}" required>
+                            <input type="date"
+                                   name="departure_date"
+                                   class="form-control @error('departure_date') is-invalid @enderror"
+                                   value="{{ old('departure_date', \Carbon\Carbon::parse($cruise->departure_date)->format('Y-m-d')) }}"
+                                   required>
+
+                            @error('departure_date')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Departure Time</label>
-                            <input type="time" name="departure_time" class="form-control" value="{{ old('departure_time', \Carbon\Carbon::parse($cruise->departure_time)->format('H:i')) }}" required>
+                            <input type="time"
+                                   name="departure_time"
+                                   class="form-control @error('departure_time') is-invalid @enderror"
+                                   value="{{ old('departure_time', \Carbon\Carbon::parse($cruise->departure_time)->format('H:i')) }}"
+                                   required>
+
+                            @error('departure_time')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Arrival Date</label>
-                            <input type="date" name="arrival_date" class="form-control" value="{{ old('arrival_date', $cruise->arrival_date) }}" required>
+                            <input type="date"
+                                   name="arrival_date"
+                                   class="form-control @error('arrival_date') is-invalid @enderror"
+                                   value="{{ old('arrival_date', \Carbon\Carbon::parse($cruise->arrival_date)->format('Y-m-d')) }}"
+                                   required>
+
+                            @error('arrival_date')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                     </div>
@@ -306,28 +403,66 @@
 
                         <div class="col-md-4">
                             <label class="form-label">Capacity</label>
-                            <input type="number" min="1" name="capacity" class="form-control" value="{{ old('capacity', $cruise->capacity) }}" required>
+                            <input type="number"
+                                   min="1"
+                                   name="capacity"
+                                   class="form-control @error('capacity') is-invalid @enderror"
+                                   value="{{ old('capacity', $cruise->capacity) }}"
+                                   required>
+
+                            @error('capacity')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Available Slots</label>
-                            <input type="number" min="0" name="available_slots" class="form-control" value="{{ old('available_slots', $cruise->available_slots) }}" required>
+                            <input type="number"
+                                   min="0"
+                                   name="available_slots"
+                                   class="form-control @error('available_slots') is-invalid @enderror"
+                                   value="{{ old('available_slots', $cruise->available_slots) }}"
+                                   required>
+
+                            @error('available_slots')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                         <div class="col-md-4">
                             <label class="form-label">Status</label>
-                            <select name="status" class="form-select" required>
-                                <option value="Available" {{ old('status', $cruise->status) === 'Available' ? 'selected' : '' }}>Available</option>
-                                <option value="Limited Slots" {{ old('status', $cruise->status) === 'Limited Slots' ? 'selected' : '' }}>Limited Slots</option>
-                                <option value="Fully Booked" {{ old('status', $cruise->status) === 'Fully Booked' ? 'selected' : '' }}>Fully Booked</option>
-                                <option value="Cancelled" {{ old('status', $cruise->status) === 'Cancelled' ? 'selected' : '' }}>Cancelled</option>
+                            <select name="status"
+                                    class="form-select @error('status') is-invalid @enderror"
+                                    required>
+                                <option value="Available" {{ old('status', $cruise->status) === 'Available' ? 'selected' : '' }}>
+                                    Available
+                                </option>
+
+                                <option value="Limited Slots" {{ old('status', $cruise->status) === 'Limited Slots' ? 'selected' : '' }}>
+                                    Limited Slots
+                                </option>
+
+                                <option value="Fully Booked" {{ old('status', $cruise->status) === 'Fully Booked' ? 'selected' : '' }}>
+                                    Fully Booked
+                                </option>
+
+                                <option value="Cancelled" {{ old('status', $cruise->status) === 'Cancelled' ? 'selected' : '' }}>
+                                    Cancelled
+                                </option>
+
+                                <option value="Completed" {{ old('status', $cruise->status) === 'Completed' ? 'selected' : '' }}>
+                                    Completed
+                                </option>
                             </select>
+
+                            @error('status')
+                                <div class="invalid-feedback">{{ $message }}</div>
+                            @enderror
                         </div>
 
                     </div>
 
                 </div>
-
             </div>
 
         </div>
@@ -335,7 +470,6 @@
         <div class="col-lg-4">
 
             <div class="card guide-card mb-4">
-
                 <div class="card-body p-4">
 
                     <h5 class="fw-bold mb-3">
@@ -345,17 +479,13 @@
                     <div class="upload-box">
 
                         @if($cruise->image)
-
                             <img src="{{ asset('storage/' . $cruise->image) }}"
                                  alt="{{ $cruise->cruise_name }}"
                                  class="current-image">
-
                         @else
-
                             <div class="image-placeholder">
                                 <i class="bi bi-ship"></i>
                             </div>
-
                         @endif
 
                         <p class="fw-bold mb-1">
@@ -366,16 +496,21 @@
                             Leave empty to keep current image.
                         </small>
 
-                        <input type="file" name="image" class="form-control" accept="image/*">
+                        <input type="file"
+                               name="image"
+                               class="form-control @error('image') is-invalid @enderror"
+                               accept="image/*">
+
+                        @error('image')
+                            <div class="invalid-feedback text-start">{{ $message }}</div>
+                        @enderror
 
                     </div>
 
                 </div>
-
             </div>
 
             <div class="card guide-card mb-4">
-
                 <div class="card-body p-4">
 
                     <h5 class="fw-bold mb-3">
@@ -398,25 +533,26 @@
                     </div>
 
                 </div>
-
-            </div>
-
-            <div class="d-flex gap-2 flex-wrap">
-
-                <button type="submit" class="btn btn-primary action-btn">
-                    <i class="bi bi-save"></i>
-                    Update Cruise
-                </button>
-
-                <a href="{{ route('cruises.index') }}" class="btn btn-light action-btn">
-                    <i class="bi bi-x-circle"></i>
-                    Cancel
-                </a>
-
             </div>
 
         </div>
 
+    </div>
+
+    <div class="card bottom-action-card mt-4">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+            <a href="{{ route('cruises.index') }}" class="btn btn-light action-btn">
+                <i class="bi bi-arrow-left"></i>
+                Cancel
+            </a>
+
+            <button type="submit" class="btn btn-primary action-btn">
+                <i class="bi bi-save"></i>
+                Save Changes
+            </button>
+
+        </div>
     </div>
 
 </form>
