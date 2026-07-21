@@ -134,7 +134,6 @@
         border: none;
         border-radius: 26px;
         box-shadow: 0 16px 42px rgba(15, 23, 42, 0.08);
-        height: 100%;
     }
 
     .guide-item {
@@ -163,28 +162,40 @@
         gap: 8px;
     }
 
-    .bottom-action-card {
-    position: relative;
-    z-index: 1;
-    border: none;
-    border-radius: 24px;
-    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.09);
-    background: #ffffff;
+    .top-action-card {
+        border: none;
+        border-radius: 24px;
+        background: white;
+        box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+        margin-bottom: 24px;
     }
 
-    .bottom-action-card .card-body {
+    .top-action-card .card-body {
         padding: 18px 22px;
     }
 
-    @media (max-width: 768px) {
-    .bottom-action-card .card-body {
-        flex-direction: column-reverse;
-        align-items: stretch !important;
+    .save-main-btn {
+        background: linear-gradient(135deg, #0077b6, #00b4d8);
+        border: none;
+        color: white;
+        box-shadow: 0 12px 28px rgba(0, 119, 182, 0.25);
     }
 
-    .bottom-action-card .btn {
-        width: 100%;
+    .save-main-btn:hover {
+        color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 16px 34px rgba(0, 119, 182, 0.32);
     }
+
+    @media (max-width: 768px) {
+        .top-action-card .card-body {
+            flex-direction: column;
+            align-items: stretch !important;
+        }
+
+        .top-action-card .btn {
+            width: 100%;
+        }
     }
 </style>
 
@@ -249,6 +260,34 @@
 <form method="POST" action="{{ route('cruises.update', $cruise) }}" enctype="multipart/form-data">
     @csrf
     @method('PUT')
+
+    <div class="card top-action-card">
+        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
+
+            <div>
+                <h5 class="fw-bold mb-1 text-dark">
+                    Save Cruise Changes
+                </h5>
+
+                <small class="text-muted">
+                    Review the cruise details below, then click Save Changes.
+                </small>
+            </div>
+
+            <div class="d-flex gap-2 flex-wrap">
+                <a href="{{ route('cruises.index') }}" class="btn btn-light action-btn">
+                    <i class="bi bi-x-circle"></i>
+                    Cancel
+                </a>
+
+                <button type="submit" class="btn save-main-btn action-btn">
+                    <i class="bi bi-save"></i>
+                    Save Changes
+                </button>
+            </div>
+
+        </div>
+    </div>
 
     <div class="row g-4">
 
@@ -531,22 +570,6 @@
 
         </div>
 
-    </div>
-
-    <div class="card bottom-action-card mt-4">
-        <div class="card-body d-flex justify-content-between align-items-center flex-wrap gap-3">
-
-            <a href="{{ route('cruises.index') }}" class="btn btn-light action-btn">
-                <i class="bi bi-arrow-left"></i>
-                Cancel
-            </a>
-
-            <button type="submit" class="btn btn-primary action-btn">
-                <i class="bi bi-save"></i>
-                Save Changes
-            </button>
-
-        </div>
     </div>
 
 </form>
