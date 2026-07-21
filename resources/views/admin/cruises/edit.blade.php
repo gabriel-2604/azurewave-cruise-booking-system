@@ -164,14 +164,12 @@
     }
 
     .bottom-action-card {
-        position: sticky;
-        bottom: 18px;
-        z-index: 20;
-        border: none;
-        border-radius: 24px;
-        box-shadow: 0 20px 55px rgba(15, 23, 42, 0.16);
-        background: rgba(255, 255, 255, 0.94);
-        backdrop-filter: blur(10px);
+    position: relative;
+    z-index: 1;
+    border: none;
+    border-radius: 24px;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.09);
+    background: #ffffff;
     }
 
     .bottom-action-card .card-body {
@@ -179,18 +177,14 @@
     }
 
     @media (max-width: 768px) {
-        .bottom-action-card {
-            position: static;
-        }
+    .bottom-action-card .card-body {
+        flex-direction: column-reverse;
+        align-items: stretch !important;
+    }
 
-        .bottom-action-card .card-body {
-            flex-direction: column-reverse;
-            align-items: stretch !important;
-        }
-
-        .bottom-action-card .btn {
-            width: 100%;
-        }
+    .bottom-action-card .btn {
+        width: 100%;
+    }
     }
 </style>
 
